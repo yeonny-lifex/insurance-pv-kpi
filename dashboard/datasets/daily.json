@@ -1,0 +1,30 @@
+{
+  "description": "ce:태아보험 PV 이벤트의 일별 순방문자(KST), 최근 365일, 오늘 제외. Reads Amplitude project 309235.",
+  "source": {
+    "args": {
+      "chart": {
+        "date_range": {
+          "relative": "Last 365 Days",
+          "timezone": "Asia/Seoul"
+        },
+        "events": [
+          {
+            "event": "ce:태아보험 PV"
+          }
+        ],
+        "interval": "day",
+        "kind": "segmentation",
+        "measured_as": {
+          "as": "unique_users"
+        },
+        "name": "태아보험 PV daily"
+      },
+      "excludeIncompleteDatapoints": true,
+      "projectId": "309235"
+    },
+    "connector": "Amplitude",
+    "kind": "query",
+    "tool": "query_amplitude_data"
+  },
+  "title": "태아보험 일별 순방문자"
+}

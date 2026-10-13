@@ -1,0 +1,444 @@
+<style>
+  .tp { font-family: var(--font-anthropic-sans); display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+  .tp-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0 0 var(--cds-gap-xs); }
+  .tp-head p { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); }
+  .tp-head .tp-def { font-size: var(--cds-font-size-caption); margin-top: var(--cds-gap-xs); }
+  .tp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-md); }
+  .tp-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+  .tp-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .tp-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.15; min-height: 1.15em; }
+  .tp-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .tp-good { color: var(--color-ok); }
+  .tp-bad { color: var(--color-bad); }
+  .tp-panel { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+  .tp-panel h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .tp-panel .tp-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); }
+  .tp-chart { position: relative; min-height: 260px; }
+  .tp-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tp-tip .tp-tip-d { color: var(--cds-text-secondary); }
+  .tp-tablewrap { overflow-x: auto; }
+  .tp-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; }
+  .tp-table th { text-align: right; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .tp-table td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .tp-table th:first-child, .tp-table td:first-child, .tp-table th:nth-child(2), .tp-table td:nth-child(2) { text-align: left; }
+  .tp-table tr.tp-wkend td:nth-child(2) { color: var(--color-fg-muted); }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  .tp-fail { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .tp-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  .tp-mtable th:nth-child(2), .tp-mtable td:nth-child(2) { text-align: right; }
+  .tp-mtable tbody tr { cursor: pointer; }
+  .tp-mtable tbody tr:hover td { background: var(--cds-chart-grid); }
+  .tp-mtable tbody tr.tp-sel td { background: var(--cds-chart-grid); font-weight: var(--cds-font-weight-medium); }
+  .tp-calhead { display: flex; align-items: center; justify-content: space-between; gap: var(--cds-gap-sm); margin: var(--cds-gap-lg) 0 var(--cds-gap-sm); }
+  .tp-calhead h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); font-variant-numeric: tabular-nums; }
+  .tp-calhead .tp-calsum { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .tp-calnav { display: flex; gap: var(--cds-gap-xs); }
+  .tp-calnav button { font: inherit; background: var(--color-bg); color: var(--color-fg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 0 var(--cds-pad-sm); cursor: pointer; line-height: 1.8; }
+  .tp-calnav button:disabled { opacity: .4; cursor: default; }
+  .tp-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; min-height: 22rem; align-content: start; }
+  .tp-caldow { text-align: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding-bottom: 2px; }
+  .tp-cell { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 4px 6px; min-height: 3.4rem; display: flex; flex-direction: column; justify-content: space-between; gap: 2px; min-width: 0; }
+  .tp-cell.tp-blank { border-color: transparent; }
+  .tp-dnum { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .tp-val { font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tp-cell.tp-hit .tp-val { color: var(--color-ok); font-weight: var(--cds-font-weight-medium); }
+  .tp-bar { height: 3px; border-radius: 2px; background: var(--cds-chart-grid); overflow: hidden; }
+  .tp-bar > div { height: 100%; border-radius: 2px; }
+  @media (max-width: 480px) { .tp-val { font-size: var(--cds-font-size-caption); } .tp-cell { padding: 3px 4px; } }
+</style>
+
+<div class="tp">
+  <header class="tp-head" id="overview">
+    <h1>태아보험 PV 데일리</h1>
+    <p id="tp-takeaway" class="dash-skeleton">—</p>
+    <p class="tp-def">순방문자 = 하루 동안 <code>ce:태아보험 PV</code>를 1회 이상 발생시킨 유저 수 (Amplitude, KST). 기준일은 가장 최근 마감된 날(어제)이며, 오늘은 집계 중이라 제외합니다. 목표: 일 평균 5,000명.</p>
+  </header>
+
+  <section class="tp-cards" id="kpis">
+    <div class="tp-card" id="card-base">
+      <span class="tp-label">기준일 순방문자 · <span data-source="summary" data-field="day_md" data-row="0">—</span> (<span data-source="summary" data-field="dow" data-row="0">—</span>)</span>
+      <span class="tp-big dash-skeleton" data-source="summary" data-field="uv" data-row="0">—</span>
+      <span class="tp-sub">목표 5,000명 대비 <span class="tp-k-attain" data-source="summary" data-field="attain_pct" data-row="0">—</span></span>
+    </div>
+    <div class="tp-card" id="card-lw">
+      <span class="tp-label">전주 동요일 대비</span>
+      <span class="tp-big tp-k-lwpct dash-skeleton" data-source="summary" data-field="lw_pct" data-row="0">—</span>
+      <span class="tp-sub"><span data-source="summary" data-field="lw_md" data-row="0">—</span> · <span data-source="summary" data-field="lw_uv" data-row="0">—</span>명</span>
+    </div>
+    <div class="tp-card" id="card-pm">
+      <span class="tp-label">전월 동요일 평균 대비</span>
+      <span class="tp-big tp-k-pmpct dash-skeleton" data-source="summary" data-field="pm_pct" data-row="0">—</span>
+      <span class="tp-sub"><span data-source="summary" data-field="pm_label" data-row="0">—</span> <span data-source="summary" data-field="pm_n" data-row="0">—</span>회 평균 <span data-source="summary" data-field="pm_avg" data-row="0">—</span>명</span>
+    </div>
+    <div class="tp-card" id="card-mtd">
+      <span class="tp-label">이번 달 일평균 (<span data-source="summary" data-field="mtd_days" data-row="0">—</span>일)</span>
+      <span class="tp-big dash-skeleton" data-source="summary" data-field="mtd_avg" data-row="0">—</span>
+      <span class="tp-sub">목표 5,000명 대비 <span class="tp-k-mtd" data-source="summary" data-field="mtd_attain_pct" data-row="0">—</span></span>
+    </div>
+  </section>
+
+  <section class="tp-panel" id="trend">
+    <h2>일별 순방문자 · 최근 60일</h2>
+    <p class="tp-note">점선은 목표 5,000명, 진한 막대가 기준일입니다. 주말은 구조적으로 낮아 같은 요일끼리 비교합니다.</p>
+    <div class="tp-chart dash-skeleton" id="tp-chart" data-source="daily"></div>
+  </section>
+
+  <section class="tp-panel" id="table">
+    <h2>최근 14일 동요일 비교</h2>
+    <p class="tp-note">전주 동요일 = 7일 전 같은 요일. 전월 동요일 평균 = 지난달의 같은 요일 전체 평균.</p>
+    <div class="tp-tablewrap">
+      <table class="tp-table" data-source="compare" data-row-key="day">
+        <thead><tr>
+          <th data-field="day">날짜</th>
+          <th data-field="dow">요일</th>
+          <th data-field="uv">순방문자</th>
+          <th data-field="attain_pct">목표 달성률</th>
+          <th data-field="lw_uv">전주 동요일</th>
+          <th data-field="lw_pct">전주 대비</th>
+          <th data-field="pm_avg">전월 동요일 평균</th>
+          <th data-field="pm_pct">전월 대비</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+  <section class="tp-panel" id="monthly">
+    <h2>월별 일자별 순방문자</h2>
+    <p class="tp-note">최근 12개월 월별 요약입니다. 행을 누르면 아래 달력에 그 달의 일자별 순방문자가 나옵니다. 목표(5,000명) 이상인 날은 초록색으로 표시됩니다.</p>
+    <div class="tp-tablewrap">
+      <table class="tp-table tp-mtable" data-source="monthly" data-row-key="month">
+        <thead><tr>
+          <th data-field="month">월</th>
+          <th data-field="days">집계일수</th>
+          <th data-field="avg">일평균</th>
+          <th data-field="attain_pct">목표 달성률</th>
+          <th data-field="mom_pct">전월 대비</th>
+          <th data-field="hit_days">목표 달성일</th>
+          <th data-field="max">최고</th>
+          <th data-field="min">최저</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="tp-calhead" id="calendar">
+      <div><h3 id="tp-calmonth">—</h3><span class="tp-calsum" id="tp-calsum"></span></div>
+      <div class="tp-calnav"><button type="button" class="tp-prev" aria-label="이전 달">‹</button><button type="button" class="tp-next" aria-label="다음 달">›</button></div>
+    </div>
+    <div class="tp-cal dash-skeleton" id="tp-cal" data-source="daily"></div>
+  </section>
+</div>
+
+<script>
+dash.loader('daily', {
+  description: 'Amplitude 응답의 일별 시계열을 날짜·순방문자 행으로 변환',
+  fn: ({ answer }) => {
+    let a = typeof answer === 'string' ? JSON.parse(answer) : answer;
+    if (a && Array.isArray(a.content)) {
+      const t = a.content.find((c) => c && c.type === 'text');
+      if (!t) throw new Error('Amplitude answer has no text content');
+      a = JSON.parse(t.text);
+    }
+    if (!a || a.success === false) throw new Error((a && (a.error || a.message)) || 'Amplitude query failed');
+    const j = a.data && a.data.jsonResponse;
+    if (!j || !j.xValuesForTimeSeries || !j.timeSeries) throw new Error('Amplitude answer has no time series');
+    const xs = j.xValuesForTimeSeries, ts = j.timeSeries[0] || [];
+    return { columns: ['day', 'uv'], rows: xs.map((x, i) => ({ day: String(x).slice(0, 10), uv: Number(ts[i] && ts[i].value) })) };
+  }
+});
+
+dash.calc('compare', {
+  title: '일별 동요일 비교',
+  description: '각 날짜의 순방문자를 7일 전 같은 요일, 지난달 같은 요일 평균, 목표 5,000명과 비교',
+  inputs: ['daily'],
+  fn: (daily) => {
+    const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+    const rows = daily.map((r) => ({ day: r.day, uv: Number(r.uv), d: new Date(r.day + 'T00:00:00Z') })).sort((a, b) => a.d - b.d);
+    const by = new Map(rows.map((r) => [r.day, r.uv]));
+    const pct = (a, b) => (b ? Math.round((a / b - 1) * 1000) / 10 : null);
+    const minD = rows.length ? rows[0].d : null;
+    return rows.map((r) => {
+      const lwDay = new Date(r.d.getTime() - 7 * 864e5).toISOString().slice(0, 10);
+      const lw = by.has(lwDay) ? by.get(lwDay) : null;
+      const y = r.d.getUTCFullYear(), m = r.d.getUTCMonth();
+      const py = m === 0 ? y - 1 : y, pmo = (m + 11) % 12;
+      const pmStart = new Date(Date.UTC(py, pmo, 1));
+      const covered = minD && minD <= pmStart;
+      const same = rows.filter((x) => x.d.getUTCFullYear() === py && x.d.getUTCMonth() === pmo && x.d.getUTCDay() === r.d.getUTCDay());
+      const pmAvg = covered && same.length ? Math.round(same.reduce((s, x) => s + x.uv, 0) / same.length) : null;
+      return {
+        day: r.day, dow: DOW[r.d.getUTCDay()], uv: r.uv,
+        attain_pct: Math.round(r.uv / 5000 * 1000) / 10,
+        lw_day: lwDay, lw_uv: lw, lw_pct: lw == null ? null : pct(r.uv, lw),
+        pm_label: (pmo + 1) + '월 ' + DOW[r.d.getUTCDay()] + '요일', pm_n: covered ? same.length : null,
+        pm_avg: pmAvg, pm_pct: pmAvg == null ? null : pct(r.uv, pmAvg)
+      };
+    });
+  }
+});
+
+dash.calc('summary', {
+  title: '기준일 요약',
+  description: '가장 최근 마감일의 비교 지표와 이번 달 일평균(목표 5,000명 대비)',
+  inputs: ['compare'],
+  fn: (compare) => {
+    if (!compare.length) return [];
+    const b = compare[compare.length - 1];
+    const ym = b.day.slice(0, 7);
+    const mtd = compare.filter((r) => r.day.slice(0, 7) === ym);
+    const avg = Math.round(mtd.reduce((s, r) => s + r.uv, 0) / mtd.length);
+    const md = (x) => Number(x.slice(5, 7)) + '/' + Number(x.slice(8, 10));
+    return [{ ...b, day_md: md(b.day), lw_md: md(b.lw_day), mtd_days: mtd.length, mtd_avg: avg, mtd_attain_pct: Math.round(avg / 5000 * 1000) / 10 }];
+  }
+});
+
+dash.calc('monthly', {
+  title: '월별 요약',
+  description: '월별 집계일수, 일평균, 목표 5,000명 대비 달성률·달성일수, 전월 대비 일평균 변화 (시작이 잘린 첫 달 제외)',
+  inputs: ['daily'],
+  fn: (daily) => {
+    const byMonth = new Map();
+    daily.forEach((r) => { const k = r.day.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(Number(r.uv)); });
+    const first = daily.map((r) => r.day).sort()[0];
+    const keys = [...byMonth.keys()].sort().filter((k) => !(first && first.slice(0, 7) === k && first.slice(8, 10) !== '01'));
+    let prev = null;
+    return keys.map((k) => {
+      const v = byMonth.get(k);
+      const avg = Math.round(v.reduce((a, b) => a + b, 0) / v.length);
+      const row = {
+        month: k, days: v.length, avg,
+        attain_pct: Math.round(avg / 5000 * 1000) / 10,
+        mom_pct: prev ? Math.round((avg / prev - 1) * 1000) / 10 : null,
+        hit_days: v.filter((x) => x >= 5000).length,
+        max: Math.max(...v), min: Math.min(...v)
+      };
+      prev = avg;
+      return row;
+    });
+  }
+});
+
+(() => {
+  const TARGET = 5000;
+  const fmt = d3.format(',');
+  const md = (s) => { const [, m, d] = s.split('-'); return Number(m) + '/' + Number(d); };
+  const pctTxt = (v) => (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%');
+  const tone = (el, v) => { el.classList.remove('tp-good', 'tp-bad'); if (v != null && v !== 0) el.classList.add(v > 0 ? 'tp-good' : 'tp-bad'); };
+  const failHtml = (el) => { el.replaceChildren(); const f = document.createElement('span'); f.className = 'tp-fail'; f.textContent = 'Failed to load'; el.appendChild(f); };
+
+  function setText(sel, txt) { document.querySelectorAll(sel).forEach((el) => { el.textContent = txt; el.classList.remove('dash-skeleton'); }); }
+
+  function drawCards(s) {
+    const q = (f) => document.querySelector(`#kpis [data-field="${f}"]`);
+    q('day_md').textContent = s.day_md;
+    q('dow').textContent = s.dow;
+    q('uv').textContent = fmt(s.uv);
+    const at = q('attain_pct'); at.textContent = s.attain_pct.toFixed(1) + '%'; at.className = 'tp-k-attain ' + (s.attain_pct >= 100 ? 'tp-good' : 'tp-bad');
+    const lw = q('lw_pct'); lw.textContent = pctTxt(s.lw_pct); tone(lw, s.lw_pct);
+    q('lw_md').textContent = s.lw_md;
+    q('lw_uv').textContent = s.lw_uv == null ? '—' : fmt(s.lw_uv);
+    const pm = q('pm_pct'); pm.textContent = pctTxt(s.pm_pct); tone(pm, s.pm_pct);
+    q('pm_label').textContent = s.pm_label;
+    q('pm_n').textContent = s.pm_n == null ? '—' : s.pm_n;
+    q('pm_avg').textContent = s.pm_avg == null ? '—' : fmt(s.pm_avg);
+    q('mtd_days').textContent = s.mtd_days;
+    q('mtd_avg').textContent = fmt(s.mtd_avg);
+    const mt = q('mtd_attain_pct'); mt.textContent = s.mtd_attain_pct.toFixed(1) + '%'; mt.className = 'tp-k-mtd ' + (s.mtd_attain_pct >= 100 ? 'tp-good' : 'tp-bad');
+    document.querySelectorAll('#kpis .dash-skeleton').forEach((el) => el.classList.remove('dash-skeleton'));
+
+    const tk = document.getElementById('tp-takeaway');
+    tk.classList.remove('dash-skeleton');
+    const gap = TARGET - s.mtd_avg;
+    const dir = (v, unit) => (v == null ? '' : `${unit} ${v >= 0 ? '상승' : '하락'}`);
+    tk.textContent = `${md(s.day)}(${s.dow}) ${dir(s.lw_pct, '전주 동요일 대비')}${s.pm_pct != null ? ', ' + dir(s.pm_pct, '전월 동요일 평균 대비') : ''}. ` +
+      (gap > 0 ? `이번 달 일평균은 목표에 하루 ${fmt(gap)}명 못 미칩니다.` : `이번 달 일평균은 목표를 달성 중입니다.`);
+  }
+
+  function drawChart(rows, baseDay) {
+    const el = document.getElementById('tp-chart');
+    el.replaceChildren(); el.classList.remove('dash-skeleton');
+    const data = rows.slice(-60).map((r) => ({ ...r, d: new Date(r.day + 'T00:00:00Z') }));
+    if (!data.length) return;
+    const W = el.clientWidth || 600, H = 260;
+    const ymax = Math.max(TARGET * 1.1, d3.max(data, (d) => d.uv));
+    const y = d3.scaleLinear([0, ymax], [H - 28, 14]).nice();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).style('display', 'block');
+    const probe = svg.append('text').attr('font-size', 'var(--cds-font-size-caption)').text(fmt(y.domain()[1]));
+    const left = Math.ceil(probe.node().getComputedTextLength()) + 10; probe.remove();
+    const tLabel = svg.append('text').attr('font-size', 'var(--cds-font-size-caption)').text('목표 5,000');
+    const right = Math.ceil(tLabel.node().getComputedTextLength()) + 8; tLabel.remove();
+    const x = d3.scaleBand(data.map((d) => d.day), [left, W - right]).padding(0.25);
+
+    const ticks = y.ticks(5);
+    svg.append('g').selectAll('line').data(ticks).join('line')
+      .attr('x1', left).attr('x2', W - right).attr('y1', (t) => y(t)).attr('y2', (t) => y(t))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    svg.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', left - 6).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end')
+      .attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text((t) => fmt(t));
+
+    const mondays = data.filter((d) => d.d.getUTCDay() === 1);
+    const step = Math.max(1, Math.ceil(mondays.length * 44 / (W - left - right)));
+    svg.append('g').selectAll('text').data(mondays.filter((_, i) => i % step === 0)).join('text')
+      .attr('x', (d) => x(d.day) + x.bandwidth() / 2).attr('y', H - 8).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text((d) => md(d.day));
+
+    const bars = svg.append('g').selectAll('rect').data(data).join('rect')
+      .attr('x', (d) => x(d.day)).attr('width', x.bandwidth())
+      .attr('y', (d) => y(d.uv)).attr('height', (d) => y(0) - y(d.uv)).attr('rx', Math.min(4, x.bandwidth() / 2))
+      .attr('fill', (d) => (d.day === baseDay ? dash.colors[0] : 'var(--cds-chart-muted)'));
+
+    svg.append('line').attr('x1', left).attr('x2', W - right).attr('y1', y(TARGET)).attr('y2', y(TARGET))
+      .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3');
+    svg.append('text').attr('x', W - right + 4).attr('y', y(TARGET)).attr('dy', '0.32em')
+      .attr('fill', 'var(--color-fg-muted)').attr('font-size', 'var(--cds-font-size-caption)').text('목표 5,000');
+
+    const tip = document.createElement('div'); tip.className = 'tp-tip'; tip.hidden = true; el.appendChild(tip);
+    const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+    bars.on('pointerenter pointermove', (event, d) => {
+      bars.attr('opacity', (b) => (b === d ? 1 : 0.55));
+      tip.replaceChildren();
+      const a = document.createElement('div'); a.className = 'tp-tip-d'; a.textContent = `${md(d.day)} (${DOW[d.d.getUTCDay()]})`;
+      const b = document.createElement('div'); b.textContent = `${fmt(d.uv)}명 · 목표 대비 ${(d.uv / TARGET * 100).toFixed(1)}%`;
+      tip.append(a, b); tip.hidden = false;
+      const [px, py] = d3.pointer(event, el);
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.max(0, Math.min(W - tw, px - tw / 2)) + 'px';
+      tip.style.top = Math.max(0, py - tip.offsetHeight - 10) + 'px';
+    }).on('pointerleave', () => { bars.attr('opacity', 1); tip.hidden = true; });
+  }
+
+  function drawTable(rows) {
+    const tb = document.querySelector('.tp-table tbody');
+    tb.replaceChildren();
+    rows.slice(-14).reverse().forEach((r) => {
+      const tr = document.createElement('tr');
+      if (r.dow === '토' || r.dow === '일') tr.className = 'tp-wkend';
+      const cells = [
+        [r.day], [r.dow], [fmt(r.uv)],
+        [r.attain_pct.toFixed(1) + '%', r.attain_pct >= 100 ? 'tp-good' : null],
+        [r.lw_uv == null ? '—' : fmt(r.lw_uv)],
+        [pctTxt(r.lw_pct), r.lw_pct == null || r.lw_pct === 0 ? null : r.lw_pct > 0 ? 'tp-good' : 'tp-bad'],
+        [r.pm_avg == null ? '—' : fmt(r.pm_avg)],
+        [pctTxt(r.pm_pct), r.pm_pct == null || r.pm_pct === 0 ? null : r.pm_pct > 0 ? 'tp-good' : 'tp-bad']
+      ];
+      cells.forEach(([t, c]) => { const td = document.createElement('td'); td.textContent = t; if (c) td.className = c; tr.appendChild(td); });
+      tb.appendChild(tr);
+    });
+  }
+
+  const mbody = document.querySelector('.tp-mtable tbody');
+  mbody.addEventListener('click', (event) => {
+    const row = event.target.closest('tr[data-key]');
+    if (row) { dash.setParams({ month: row.dataset.key }); document.getElementById('calendar').scrollIntoView({ block: 'nearest' }); }
+  });
+  document.querySelector('.tp-prev').addEventListener('click', () => stepMonth(-1));
+  document.querySelector('.tp-next').addEventListener('click', () => stepMonth(1));
+  let monthKeys = [];
+  function currentMonth() {
+    const p = dash.params().month;
+    return monthKeys.includes(p) ? p : monthKeys[monthKeys.length - 1];
+  }
+  function stepMonth(d) {
+    const i = monthKeys.indexOf(currentMonth()) + d;
+    if (i >= 0 && i < monthKeys.length) dash.setParams({ month: monthKeys[i] });
+  }
+
+  function drawMonthly(rows) {
+    monthKeys = rows.map((r) => r.month);
+    const sel = currentMonth();
+    mbody.replaceChildren();
+    rows.slice().reverse().forEach((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = r.month;
+      if (r.month === sel) tr.className = 'tp-sel';
+      const cells = [
+        [r.month], [String(r.days)], [fmt(r.avg)],
+        [r.attain_pct.toFixed(1) + '%', r.attain_pct >= 100 ? 'tp-good' : null],
+        [pctTxt(r.mom_pct), r.mom_pct == null || r.mom_pct === 0 ? null : r.mom_pct > 0 ? 'tp-good' : 'tp-bad'],
+        [String(r.hit_days)], [fmt(r.max)], [fmt(r.min)]
+      ];
+      cells.forEach(([t, c]) => { const td = document.createElement('td'); td.textContent = t; if (c) td.className = c; tr.appendChild(td); });
+      mbody.appendChild(tr);
+    });
+  }
+
+  function drawCalendar(daily, mrows) {
+    const cal = document.getElementById('tp-cal');
+    cal.classList.remove('dash-skeleton');
+    cal.replaceChildren();
+    const month = currentMonth();
+    const info = mrows.find((r) => r.month === month);
+    document.getElementById('tp-calmonth').textContent = month ? Number(month.slice(0, 4)) + '년 ' + Number(month.slice(5, 7)) + '월' : '—';
+    document.getElementById('tp-calsum').textContent = info ? ` · 일평균 ${fmt(info.avg)}명 · 목표 달성 ${info.hit_days}/${info.days}일` : '';
+    const idx = monthKeys.indexOf(month);
+    document.querySelector('.tp-prev').disabled = idx <= 0;
+    document.querySelector('.tp-next').disabled = idx < 0 || idx >= monthKeys.length - 1;
+    if (!month) return;
+    ['월', '화', '수', '목', '금', '토', '일'].forEach((d) => { const h = document.createElement('div'); h.className = 'tp-caldow'; h.textContent = d; cal.appendChild(h); });
+    const days = daily.filter((r) => r.day.slice(0, 7) === month);
+    const by = new Map(days.map((r) => [r.day, Number(r.uv)]));
+    const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7)) - 1;
+    const first = new Date(Date.UTC(y, m, 1));
+    const nDays = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const lead = (first.getUTCDay() + 6) % 7;
+    const scaleMax = Math.max(TARGET, ...days.map((r) => Number(r.uv)));
+    for (let i = 0; i < lead; i++) { const b = document.createElement('div'); b.className = 'tp-cell tp-blank'; cal.appendChild(b); }
+    for (let d = 1; d <= nDays; d++) {
+      const key = month + '-' + String(d).padStart(2, '0');
+      const cell = document.createElement('div');
+      cell.className = 'tp-cell';
+      const dn = document.createElement('span'); dn.className = 'tp-dnum'; dn.textContent = d;
+      cell.appendChild(dn);
+      if (by.has(key)) {
+        const v = by.get(key);
+        if (v >= TARGET) cell.classList.add('tp-hit');
+        const val = document.createElement('span');
+        val.className = 'tp-val';
+        val.dataset.source = 'daily'; val.dataset.field = 'uv'; val.dataset.where = 'day=' + key;
+        val.textContent = fmt(v);
+        const bar = document.createElement('div'); bar.className = 'tp-bar';
+        const fill = document.createElement('div');
+        fill.style.width = Math.min(100, v / scaleMax * 100) + '%';
+        fill.style.background = v >= TARGET ? 'var(--color-ok)' : dash.colors[0];
+        bar.appendChild(fill);
+        cell.append(val, bar);
+      }
+      cal.appendChild(cell);
+    }
+  }
+
+  dash.onData(() => {
+    const daily = dash.data('daily');
+    const cmp = dash.data('compare');
+    const sum = dash.data('summary');
+    const chart = document.getElementById('tp-chart');
+
+    if (daily.status === 'error' || daily.status === 'connect' || daily.status === 'declined') {
+      chart.classList.remove('dash-skeleton'); failHtml(chart);
+    } else if (daily.status === 'ok' && cmp.status === 'ok' && Array.isArray(cmp.data) && cmp.data.length) {
+      drawChart(daily.data, cmp.data[cmp.data.length - 1].day);
+    } else {
+      chart.replaceChildren(); chart.classList.add('dash-skeleton');
+    }
+
+    if (sum.status === 'ok' && Array.isArray(sum.data) && sum.data.length) {
+      drawCards(sum.data[0]);
+    } else if (daily.status === 'error') {
+      document.querySelectorAll('#kpis .dash-skeleton, #tp-takeaway').forEach((el) => el.classList.remove('dash-skeleton'));
+    }
+
+    if (cmp.status === 'ok' && Array.isArray(cmp.data)) drawTable(cmp.data);
+    else document.querySelector('.tp-table tbody').replaceChildren();
+
+    const mon = dash.data('monthly');
+    const calEl = document.getElementById('tp-cal');
+    if (daily.status === 'error' || daily.status === 'connect' || daily.status === 'declined') {
+      mbody.replaceChildren(); calEl.classList.remove('dash-skeleton'); failHtml(calEl);
+    } else if (mon.status === 'ok' && Array.isArray(mon.data) && daily.status === 'ok') {
+      drawMonthly(mon.data);
+      drawCalendar(daily.data, mon.data);
+    }
+  });
+})();
+</script>
